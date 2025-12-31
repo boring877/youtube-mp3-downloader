@@ -12,6 +12,39 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+#[derive(Clone)]
+struct Requirements {
+    python: bool,
+    ytdlp: bool,
+    ffmpeg: bool,
+}
+
+impl Requirements {
+    fn check() -> Self {
+        let python = check_command("python", &["--version"]);
+        let ytdlp = check_command("python", &["-c", "import yt_dlp"]) || check_command("yt-dlp", &["--version"]);
+        let ffmpeg = check_command("ffmpeg", &["-version"]);
+
+        Self { python, ytdlp, ffmpeg }
+    }
+
+    fn all_ok(&self) -> bool {
+        self.python && self.ytdlp && self.ffmpeg
+    }
+}
+
+fn check_command(cmd: &str, args: &[&str]) -> bool {
+    let mut command = Command::new(cmd);
+    command.args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+
+    command.status().map(|s| s.success()).unwrap_or(false)
+}
+
 fn parse_progress(line: &str) -> Option<f32> {
     if !line.contains("[download]") {
         return None;
@@ -97,6 +130,8 @@ struct App {
     phase: Arc<Mutex<Phase>>,
     is_downloading: Arc<Mutex<bool>>,
     download_folder: Arc<Mutex<String>>,
+    requirements: Requirements,
+    show_setup: bool,
 }
 
 impl App {
@@ -107,6 +142,9 @@ impl App {
             String::from("Downloads/YouTube")
         };
 
+        let requirements = Requirements::check();
+        let show_setup = !requirements.all_ok();
+
         Self {
             url: String::new(),
             status: Arc::new(Mutex::new(String::new())),
@@ -114,6 +152,15 @@ impl App {
             phase: Arc::new(Mutex::new(Phase::Idle)),
             is_downloading: Arc::new(Mutex::new(false)),
             download_folder: Arc::new(Mutex::new(default_folder)),
+            requirements,
+            show_setup,
+        }
+    }
+
+    fn recheck_requirements(&mut self) {
+        self.requirements = Requirements::check();
+        if self.requirements.all_ok() {
+            self.show_setup = false;
         }
     }
 
@@ -267,6 +314,12 @@ impl eframe::App for App {
                 ui.add_space(20.0);
             });
 
+            // Show setup instructions if requirements are missing
+            if self.show_setup {
+                self.show_setup_ui(ui);
+                return;
+            }
+
             ui.add_space(10.0);
             ui.label("Paste YouTube URL:");
             ui.add_space(5.0);
@@ -371,6 +424,103 @@ impl eframe::App for App {
                     }
                 });
             });
+        });
+    }
+}
+
+impl App {
+    fn show_setup_ui(&mut self, ui: &mut egui::Ui) {
+        ui.add_space(10.0);
+
+        ui.group(|ui| {
+            ui.set_width(ui.available_width());
+            ui.vertical(|ui| {
+                ui.colored_label(egui::Color32::YELLOW, "Setup Required");
+                ui.add_space(10.0);
+                ui.label("This app needs the following to work:");
+                ui.add_space(10.0);
+
+                // Python status
+                ui.horizontal(|ui| {
+                    if self.requirements.python {
+                        ui.colored_label(egui::Color32::GREEN, "OK");
+                    } else {
+                        ui.colored_label(egui::Color32::RED, "X ");
+                    }
+                    ui.label("Python");
+                });
+
+                // yt-dlp status
+                ui.horizontal(|ui| {
+                    if self.requirements.ytdlp {
+                        ui.colored_label(egui::Color32::GREEN, "OK");
+                    } else {
+                        ui.colored_label(egui::Color32::RED, "X ");
+                    }
+                    ui.label("yt-dlp");
+                });
+
+                // FFmpeg status
+                ui.horizontal(|ui| {
+                    if self.requirements.ffmpeg {
+                        ui.colored_label(egui::Color32::GREEN, "OK");
+                    } else {
+                        ui.colored_label(egui::Color32::RED, "X ");
+                    }
+                    ui.label("FFmpeg");
+                });
+            });
+        });
+
+        ui.add_space(15.0);
+
+        // Installation instructions
+        egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+            if !self.requirements.python {
+                ui.group(|ui| {
+                    ui.set_width(ui.available_width());
+                    ui.strong("Install Python:");
+                    ui.label("1. Go to python.org/downloads");
+                    ui.label("2. Download and run installer");
+                    ui.label("3. CHECK 'Add Python to PATH'");
+                    ui.label("4. Click Install Now");
+                });
+                ui.add_space(10.0);
+            }
+
+            if !self.requirements.ytdlp {
+                ui.group(|ui| {
+                    ui.set_width(ui.available_width());
+                    ui.strong("Install yt-dlp:");
+                    ui.label("Open Command Prompt and run:");
+                    ui.code("pip install yt-dlp");
+                });
+                ui.add_space(10.0);
+            }
+
+            if !self.requirements.ffmpeg {
+                ui.group(|ui| {
+                    ui.set_width(ui.available_width());
+                    ui.strong("Install FFmpeg:");
+                    ui.label("Option 1: Open Command Prompt and run:");
+                    ui.code("winget install FFmpeg");
+                    ui.add_space(5.0);
+                    ui.label("Option 2: Manual install from ffmpeg.org");
+                    ui.label("(extract to C:\\ffmpeg and add bin to PATH)");
+                });
+            }
+        });
+
+        ui.add_space(15.0);
+
+        ui.vertical_centered(|ui| {
+            if ui.button("I've installed them - Check Again").clicked() {
+                self.recheck_requirements();
+            }
+            ui.add_space(5.0);
+            if ui.small_button("Skip (use anyway)").clicked() {
+                self.show_setup = false;
+            }
         });
     }
 }
