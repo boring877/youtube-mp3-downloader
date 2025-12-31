@@ -1,0 +1,18 @@
+[package]
+name = "youtube_downloader"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.29"
+dirs-next = "2.0"
+rfd = "0.15"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[build-dependencies]
+winresource = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
