@@ -16,9 +16,59 @@ A simple, fast GUI application to download YouTube videos as MP3 files.
 ## Requirements
 
 - Windows 10/11
-- Python 3.x installed and in PATH
-- yt-dlp (`pip install yt-dlp`)
-- FFmpeg (for audio conversion)
+- Python 3.x
+- yt-dlp
+- FFmpeg
+
+### Installing Requirements
+
+#### 1. Install Python
+
+1. Download Python from [python.org](https://www.python.org/downloads/)
+2. Run the installer
+3. **Important:** Check the box that says "Add Python to PATH" during installation
+4. Click "Install Now"
+
+To verify installation, open Command Prompt and type:
+```cmd
+python --version
+```
+
+#### 2. Install yt-dlp
+
+Open Command Prompt and run:
+```cmd
+pip install yt-dlp
+```
+
+To update yt-dlp later:
+```cmd
+pip install --upgrade yt-dlp
+```
+
+#### 3. Install FFmpeg
+
+**Option A: Using winget (Windows 10/11)**
+```cmd
+winget install FFmpeg
+```
+
+**Option B: Manual Installation**
+1. Download FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html) or [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (recommended for Windows)
+2. Download the "ffmpeg-release-essentials.zip" file
+3. Extract the zip file to `C:\ffmpeg`
+4. Add FFmpeg to your PATH:
+   - Press `Win + X` and select "System"
+   - Click "Advanced system settings"
+   - Click "Environment Variables"
+   - Under "System variables", find and select "Path", then click "Edit"
+   - Click "New" and add `C:\ffmpeg\bin`
+   - Click "OK" on all windows
+
+To verify installation, open a **new** Command Prompt and type:
+```cmd
+ffmpeg -version
+```
 
 ## Installation
 
